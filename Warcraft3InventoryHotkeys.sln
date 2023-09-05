@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.1.32210.238
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotNetSketchbook", "DotNetSketchbook.csproj", "{AFCF19E8-8CFA-4454-8C2B-6E86EFAD0AA1}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Warcraft3InventoryHotkeys", "Warcraft3InventoryHotkeys.csproj", "{AFCF19E8-8CFA-4454-8C2B-6E86EFAD0AA1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
