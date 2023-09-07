@@ -1,22 +1,34 @@
 ﻿using InventoryHotkeys;
+using Warcraft3InventoryHotkeys;
 
 class Program
 {
-    private static WarcraftMonitor monitor;
     private static InterceptKeys interceptor;
+    private static StatusWindow statusWindow;
 
     static void Main()
     {
-        monitor = new();
-        monitor.StartMonitoring();
-
         interceptor = new();
         interceptor.OnPress += OnKeyPressed;
         interceptor.Register();
 
-        Application.Run();
+        statusWindow = new();
+        statusWindow.IsEnabled = true;
 
+        new Task(Monitor).Start();
+
+        Application.Run(statusWindow);
         interceptor.Dispose();
+    }
+
+    static async void Monitor()
+    {
+        while (true)
+        {
+            statusWindow.IsPolling = WarcraftMonitor.IsPlaying();
+
+            await Task.Delay(100);
+        }
     }
 
     private static readonly Dictionary<int, VirtualNumpad.Numpad> bindings = new()
@@ -31,7 +43,13 @@ class Program
 
     private static void OnKeyPressed(int vCode)
     {
-        if (monitor.IsPlaying)
+        // Home key.
+        if (vCode == 36)
+        {
+            statusWindow.IsEnabled = !statusWindow.IsEnabled;
+        }
+
+        if (statusWindow.IsPolling)
         {
             if (bindings.ContainsKey(vCode))
             {

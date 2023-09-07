@@ -8,48 +8,34 @@ namespace InventoryHotkeys
     /// </summary>
     class WarcraftMonitor
     {
-        // TODO: Need to check if we're actually in a game. Currently,
-        // this will return false if the chat input field is open, otherwise true.
-        public bool IsPlaying { get; private set; } = false;
-
         [DllImport("gdi32.dll")]
         private static extern int BitBlt(IntPtr srchDc, int srcX, int srcY, int srcW, int srcH,
             IntPtr desthDc, int destX, int destY, int op);
 
-        public void StartMonitoring()
+        // TODO: Need to check if we're actually in a game. Currently,
+        // this will return false if the chat input field is open, otherwise true.
+        public static bool IsPlaying()
         {
-            var task = new Task(Monitor);
-            task.Start();
+            if (SearchForWarcraft(out Process warcraftProcess))
+            {
+                return IsWarcraftGameplay(warcraftProcess);
+            }
+
+            return false;
         }
 
-        private async void Monitor()
+        private static bool SearchForWarcraft(out Process process)
         {
-            Process warcraftProcess = null;
+            var processes = Process.GetProcessesByName("Warcraft III");
 
-            while (true)
+            if (processes.Length > 0)
             {
-                IsPlaying = false;
-
-                if (warcraftProcess == null)
-                    warcraftProcess = await SearchForWarcraft();
-
-                IsPlaying = IsWarcraftGameplay(warcraftProcess);
-
-                await Task.Delay(100);
+                process = processes[0];
+                return true;
             }
-        }
 
-        private static async Task<Process> SearchForWarcraft()
-        {
-            while (true)
-            {
-                var processes = Process.GetProcessesByName("Warcraft III");
-
-                if (processes.Length > 0)
-                    return processes[0];
-
-                await Task.Delay(100);
-            }
+            process = null;
+            return false;
         }
 
         // We only want to forward key presses when the user is in normal gameplay;
@@ -78,7 +64,12 @@ namespace InventoryHotkeys
             gdest.ReleaseHdc();
             gsrc.ReleaseHdc();
 
+            // Count how many pixels in the area match. Some may be incorrect due to the mouse cursor
+            // hovering the message box; to account for this, we assume if more than 64 are incorrect
+            // the message box is closed.
             Color a = Color.FromArgb(255, 245, 194, 37), b = Color.FromArgb(255, 246, 194, 37);
+
+            int count = 0;
 
             for (int i = 0; i < bitmap.Width; i++)
             {
@@ -86,11 +77,11 @@ namespace InventoryHotkeys
 
                 if (pixel != a && pixel != b)
                 {
-                    return true;
+                    count++;
                 }
             }
 
-            return false;
+            return count > 64;
         }
     }
 }

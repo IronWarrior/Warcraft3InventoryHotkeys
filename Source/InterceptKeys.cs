@@ -28,13 +28,16 @@ namespace InventoryHotkeys
         private const int WH_KEYBOARD_LL = 13;
         private const int WM_KEYDOWN = 0x0100;
 
+        private LowLevelKeyboardProc hookProc;
+
         private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
         public void Register()
         {
             Debug.Assert(hookID == IntPtr.Zero, "Attempting to register hook that has already been registered.");
 
-            hookID = SetHook(HookCallback);
+            hookProc = HookCallback;
+            hookID = SetHook(hookProc);
         }
 
         public void Dispose()
