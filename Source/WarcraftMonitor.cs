@@ -4,13 +4,16 @@ using System.Runtime.InteropServices;
 namespace InventoryHotkeys
 {
     /// <summary>
-    /// Periodically checks whether Warcraft III is open and whether the user is in normal gameplay.
+    /// Checks whether Warcraft III is open and whether the user is in normal gameplay.
     /// </summary>
     class WarcraftMonitor
     {
         [DllImport("gdi32.dll")]
         private static extern int BitBlt(IntPtr srchDc, int srcX, int srcY, int srcW, int srcH,
             IntPtr desthDc, int destX, int destY, int op);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, ExactSpelling = true)]
+        private static extern IntPtr GetForegroundWindow();
 
         // TODO: Need to check if we're actually in a game. Currently,
         // this will return false if the chat input field is open, otherwise true.
@@ -50,19 +53,21 @@ namespace InventoryHotkeys
         private static bool IsWarcraftGameplay(Process warcraftProcess)
         {
             IntPtr handle = warcraftProcess.MainWindowHandle;
+            IntPtr foreground = GetForegroundWindow();
 
-            using var bitmap = new Bitmap(512, 1);
+            // Check if Warcraft is focused.
+            if (handle != foreground)
+                return false;
 
-            using Graphics gdest = Graphics.FromImage(bitmap);
-            using Graphics gsrc = Graphics.FromHwnd(handle);
+            using Bitmap gold = GetPixelsFromWindow(handle, 1087, 12, 1, 1);
+            using Bitmap lumber = GetPixelsFromWindow(handle, 1238, 12, 1, 1);
 
-            IntPtr hsrcdc = gsrc.GetHdc();
-            IntPtr hdc = gdest.GetHdc();
+            // *Both* must fail the test to ensure we are not in standard gameplay,
+            // as the mouse cursor can cover one of the icons.
+            if (lumber.GetPixel(0, 0) != Color.FromArgb(52, 146, 38) && gold.GetPixel(0, 0) != Color.FromArgb(238, 214, 98))
+                return false;
 
-            BitBlt(hdc, 0, 0, bitmap.Width, 1, hsrcdc, 620, 841, (int)CopyPixelOperation.SourceCopy);
-
-            gdest.ReleaseHdc();
-            gsrc.ReleaseHdc();
+            using Bitmap messageBoxBitmap = GetPixelsFromWindow(handle, 620, 841, 512, 1);
 
             // Count how many pixels in the area match. Some may be incorrect due to the mouse cursor
             // hovering the message box; to account for this, we assume if more than 64 are incorrect
@@ -71,9 +76,9 @@ namespace InventoryHotkeys
 
             int count = 0;
 
-            for (int i = 0; i < bitmap.Width; i++)
+            for (int i = 0; i < messageBoxBitmap.Width; i++)
             {
-                Color pixel = bitmap.GetPixel(i, 0);
+                Color pixel = messageBoxBitmap.GetPixel(i, 0);
 
                 if (pixel != a && pixel != b)
                 {
@@ -82,6 +87,24 @@ namespace InventoryHotkeys
             }
 
             return count > 64;
+        }
+
+        private static Bitmap GetPixelsFromWindow(IntPtr windowHandle, int x, int y, int width, int height)
+        {
+            var bitmap = new Bitmap(width, height);
+
+            using Graphics gdest = Graphics.FromImage(bitmap);
+            using Graphics gsrc = Graphics.FromHwnd(windowHandle);
+
+            IntPtr hsrcdc = gsrc.GetHdc();
+            IntPtr hdc = gdest.GetHdc();
+
+            BitBlt(hdc, 0, 0, width, height, hsrcdc, x, y, (int)CopyPixelOperation.SourceCopy);
+
+            gdest.ReleaseHdc();
+            gsrc.ReleaseHdc();
+
+            return bitmap;
         }
     }
 }

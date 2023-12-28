@@ -1,31 +1,58 @@
 ﻿using InventoryHotkeys;
 using Warcraft3InventoryHotkeys;
+using Warcraft3InventoryHotkeys.Source;
 
 class Program
 {
     private static InterceptKeys interceptor;
     private static StatusWindow statusWindow;
+    private static Config config;
+
+    private static bool hotkeysEnabled, hotkeysPolling;
 
     static void Main()
     {
+        config = Config.Load();
+
         interceptor = new();
         interceptor.OnPress += OnKeyPressed;
         interceptor.Register();
 
-        statusWindow = new();
-        statusWindow.IsEnabled = true;
+        hotkeysEnabled = true;
+
+        statusWindow = new(config.WindowLocation);
+        statusWindow.OnMoved += StatusWindow_OnMoved;
 
         new Task(Monitor).Start();
 
         Application.Run(statusWindow);
+
         interceptor.Dispose();
+    }
+
+    private static void StatusWindow_OnMoved()
+    {
+        config.WindowLocation = statusWindow.Location;
+
+        Config.Save(config);
     }
 
     static async void Monitor()
     {
         while (true)
         {
-            statusWindow.IsPolling = WarcraftMonitor.IsPlaying();
+            hotkeysPolling = WarcraftMonitor.IsPlaying();
+
+            StatusWindow.IndicatorStatus indicator;
+
+            if (!hotkeysEnabled)
+                indicator = StatusWindow.IndicatorStatus.Disabled;
+            else if (hotkeysPolling)
+                indicator = StatusWindow.IndicatorStatus.Polling;
+            else
+                indicator = StatusWindow.IndicatorStatus.Idle;
+
+            statusWindow.SetIndicator(indicator);
 
             await Task.Delay(100);
         }
@@ -46,10 +73,10 @@ class Program
         // Home key.
         if (vCode == 36)
         {
-            statusWindow.IsEnabled = !statusWindow.IsEnabled;
+            hotkeysEnabled = !hotkeysEnabled;
         }
 
-        if (statusWindow.IsPolling)
+        if (hotkeysEnabled && hotkeysPolling)
         {
             if (bindings.ContainsKey(vCode))
             {
